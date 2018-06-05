@@ -363,7 +363,7 @@ class BoostDependency(ExternalDependency):
             libname = 'boost_' + module + tag
 
             args = self.compiler.find_library(libname, self.env, self.extra_lib_dirs())
-            if args is None:
+            if not args:
                 mlog.debug("Couldn\'t find library '{}' for boost module '{}'  (ABI tag = '{}')".format(libname, module, tag))
                 all_found = False
             else:
