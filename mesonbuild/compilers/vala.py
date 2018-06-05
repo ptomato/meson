@@ -93,7 +93,7 @@ class ValaCompiler(Compiler):
             if os.path.isfile(vapi):
                 return [vapi]
         mlog.debug('Searched {!r} and {!r} wasn\'t found'.format(extra_dirs, libname))
-        return None
+        return []
 
     def thread_flags(self, env):
         return []
