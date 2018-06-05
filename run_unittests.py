@@ -484,7 +484,7 @@ class BasePlatformTests(unittest.TestCase):
         src_root = os.path.join(os.getcwd(), src_root)
         self.src_root = src_root
         self.prefix = '/usr'
-        self.libdir = os.path.join(self.prefix, 'lib')
+        self.libdir = 'lib'
         # Get the backend
         # FIXME: Extract this from argv?
         self.backend = getattr(Backend, os.environ.get('MESON_UNIT_TEST_BACKEND', 'ninja'))
@@ -3122,7 +3122,6 @@ endian = 'little'
         self.build()
         mesonbuild.modules.gnome.native_glib_version = None
 
-    @unittest.skipIf(shutil.which('pkg-config') is None, 'Pkg-config not found.')
     def test_pkgconfig_usage(self):
         testdir1 = os.path.join(self.unit_test_dir, '24 pkgconfig usage/dependency')
         testdir2 = os.path.join(self.unit_test_dir, '24 pkgconfig usage/dependee')
@@ -3158,7 +3157,6 @@ endian = 'little'
             self.assertTrue(os.path.isfile(test_exe))
             subprocess.check_call(test_exe, env=myenv)
 
-    @unittest.skipIf(shutil.which('pkg-config') is None, 'Pkg-config not found.')
     def test_pkgconfig_internal_libraries(self):
         '''
         '''
@@ -3179,7 +3177,6 @@ endian = 'little'
             self.init(os.path.join(testdirbase, 'app'))
             self.build()
 
-    @unittest.skipIf(shutil.which('pkg-config') is None, 'Pkg-config not found.')
     def test_pkgconfig_formatting(self):
         testdir = os.path.join(self.unit_test_dir, '31 pkgconfig format')
         self.init(testdir)
@@ -3187,10 +3184,39 @@ endian = 'little'
         myenv['PKG_CONFIG_PATH'] = self.privatedir
         stdo = subprocess.check_output(['pkg-config', '--libs-only-l', 'libsomething'], env=myenv)
         deps = [b'-lgobject-2.0', b'-lgio-2.0', b'-lglib-2.0', b'-lsomething']
-        if is_windows() or is_cygwin():
+        if is_windows() or is_cygwin() or is_osx():
             # On Windows, libintl is a separate library
             deps.append(b'-lintl')
         self.assertEqual(set(deps), set(stdo.split()))
+
+    def test_uninstalled_usage_external_library(self):
+        '''
+        Test that uninstalled usage of an external library (from the system or
+        PkgConfigDependency) works. On Linux/BSD/macOS it tests if RPATHs are
+        set correctly.
+
+        TODO: On Windows, this can test whether PATH is set properly
+
+        The system library is found with cc.find_library() and pkg-config deps.
+        '''
+        oldprefix = self.prefix
+        # Install external library so we can find it
+        testdir = os.path.join(self.unit_test_dir, '33 external, internal library rpath', 'external library')
+        installdir = self.installdir
+        self.prefix = installdir
+        self.init(testdir)
+        self.build()
+        self.install(use_destdir=False)
+        self.prefix = oldprefix
+        # New builddir for the consumer
+        self.new_builddir()
+        os.environ['LIBRARY_PATH'] = os.path.join(installdir, self.libdir)
+        os.environ['PKG_CONFIG_PATH'] = os.path.join(installdir, self.libdir, 'pkgconfig')
+        testdir = os.path.join(self.unit_test_dir, '33 external, internal library rpath', 'built library')
+        self.init(testdir)
+        self.build()
+        self.run_tests()
+
 
 class LinuxArmCrossCompileTests(BasePlatformTests):
     '''
